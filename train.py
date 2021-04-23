@@ -7,8 +7,8 @@ from torch import optim
 from torch.autograd import Variable
 from thop import profile
 from config_tools import get_config
-from onet.data import load_data
-from onet.model import PolygonNet
+from datas.data import load_data
+from nets.model import PolygonNet
 from test import test
 import time
 
