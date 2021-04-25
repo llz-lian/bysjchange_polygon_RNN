@@ -4,9 +4,9 @@ import numpy as np
 from torch.nn import parameter
 import torch.utils.data
 from torch import  nn
-from torch.autograd import Variable
+from torch.autograd import Variable, backward
 import time
-from mymodel import PolygonNet
+from omodel import PolygonNet
 from utils.utils import img2tensor
 from utils.utils import getbboxfromkps
 from utils.utils import  getbboxfromkps
@@ -58,7 +58,7 @@ def getNet():
     torch.cuda.set_device(0)
     net = PolygonNet(load_vgg=False)
     net = nn.DataParallel(net, device_ids=[0])
-    net.load_state_dict(torch.load('./myResult/mynet/train130_50000.pth'),False)
+    net.load_state_dict(torch.load('./VGG40.pth'))
     net.cuda()
     return net
 
@@ -112,7 +112,7 @@ def predictFromJson():
             color = tuple(color)
             
 
-def predict(imga):
+def old_predict(imga):
     image = cv2.imread(imga)
     def on_EVENT_LBUTTONDOWN(event, x, y, flags, param):
         global x1,y1,x2,y2,drawing
@@ -236,6 +236,77 @@ def sumPolygonPoints(dataset):
 
 
 
+
+
+
+
+def predict(image_name):
+    original_image = cv2.imread(image_name)
+    back_ground = original_image
+    net = getNet()
+    def on_EVENT_LBUTTONDOWN(event, x, y, flags, param):
+        global x1,y1,x2,y2,drawing
+        if event == cv2.EVENT_LBUTTONDOWN:
+            drawing = True
+            x1,y1 = x,y
+        elif event == cv2.EVENT_MOUSEMOVE:
+            pass
+        elif event==cv2.EVENT_LBUTTONUP:
+            drawing = False
+            x2,y2 = x,y
+    global x1,y1,x2,y2
+    cv2.namedWindow('image',cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback('image',on_EVENT_LBUTTONDOWN)
+    num = 6
+    
+    while(num>0):
+        num = num -1;
+        while(1):
+            cv2.imshow('image',original_image)
+            k = cv2.waitKey(1) & 0xFF
+            if k == 27:
+                break
+        print(x1,y1)
+        print(x2,y2)
+        obj_points = [(x1,y1),(x2,y2)]
+        min_row, min_col, max_row, max_col = getbboxfromkps(
+                            obj_points, original_image.shape[0],original_image.shape[1])
+        object_h = max_row - min_row
+        object_w = max_col - min_col
+        scale_h = 224.0 / object_h
+        scale_w = 224.0 / object_w
+        scale_image = original_image[int(min_row):int(max_row),int(min_col):int(max_col), :]
+        scale_image = cv2.resize(scale_image,(224,224))
+
+        b,g,r = cv2.split(scale_image)
+        rgb_pic = cv2.merge([r,g,b])
+        xx = img2tensor(rgb_pic)
+        xx = Variable(xx)
+        xx = xx.unsqueeze(0).type(dtype)#add batch
+        net.module.eval()
+        re = net.module.test(xx, 60)
+        labels_p = re.cpu().numpy()[0]
+        vertices1 = []  
+        for label in labels_p:
+            if (label == 784):
+                break
+            vertex = (
+            ((label % 28) * 8.0 + 4) / scale_w + min_col, 
+            ((int(label / 28)) * 8.0 + 4) / scale_h + min_row
+            )
+            vertices1.append(vertex)
+        color = [np.random.randint(0, 255) for _ in range(3)]
+        color += [100]
+        #color = tuple(color)
+
+        vertices1 = np.array(vertices1,dtype=np.int)
+        
+        back_ground = cv2.fillConvexPoly(back_ground,
+                                    vertices1,
+                                    (100,100,220)
+                                    )
+        original_image = cv2.addWeighted(back_ground,0.2,original_image,0.8,0)
+predict("img/6C471B3279340E0CDEF4C2E3FA29C2F2.png")
 
 
 """
