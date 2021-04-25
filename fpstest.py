@@ -6,13 +6,13 @@ import torch.utils.data
 from torch import  nn
 from torch.autograd import Variable, backward
 import time
-from omodel import PolygonNet
+from nets.omodel import PolygonNet
 from utils.utils import img2tensor
 from utils.utils import getbboxfromkps
 from utils.utils import  getbboxfromkps
 import glob
 import cv2
-from data import load_data
+from datas.data import load_data
 dtype = torch.cuda.FloatTensor
 drawing = False
 x1,y1 = -1,-1
